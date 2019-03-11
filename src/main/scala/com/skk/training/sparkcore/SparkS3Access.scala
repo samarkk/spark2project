@@ -11,10 +11,10 @@ object SparkS3Access extends App {
   //  println(sc.version + " , " + spark.version)
   sc.setLogLevel("ERROR")
   sc.hadoopConfiguration.set("fs.s3.impl", "org.apache.hadoop.fs.s3native.NativeS3FileSystem")
-  sc.hadoopConfiguration.set("fs.s3.awsAccessKeyId", "AKIAJOKZIKXNIEHRB56Q")
-  sc.hadoopConfiguration.set(
-    "fs.s3.awsSecretAccessKey",
-    "AVU1tPsVvXCXnD53kgrzYoRLZBzSNjsd6hznM0Tm")
+  val awsAccessKeyId = "Put your S3 Access Key Id here"
+  sc.hadoopConfiguration.set("fs.s3.awsAccessKeyId", awsAccessKeyId)
+  val awsSecretAccessKey = "Put your aws secret access key here"
+  sc.hadoopConfiguration.set("fs.s3.awsSecretAccessKey", awsSecretAccessKey)
 
   val shakRDD = sc.textFile("s3://fbucketn/shakespeare.txt")
   //  println(shakRDD.count)
