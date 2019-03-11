@@ -16,7 +16,8 @@ object SparkS3Access extends App {
   val awsSecretAccessKey = "Put your aws secret access key here"
   sc.hadoopConfiguration.set("fs.s3.awsSecretAccessKey", awsSecretAccessKey)
 
-  val shakRDD = sc.textFile("s3://fbucketn/shakespeare.txt")
+  val s3URL = "your s3 bucket with shakespeare.txt"
+  val shakRDD = sc.textFile(s3URL)
   //  println(shakRDD.count)
   shakRDD
     .flatMap(_ split " ")
