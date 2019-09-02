@@ -4,7 +4,7 @@ import org.apache.spark.sql.SparkSession
 
 object SparkMostCommonProductCombinations extends App {
   val spark = SparkSession.builder()
-    .appName("SparkCoreTransformations")
+    .appName("SparkMostCommonProductCombinations")
     .master(args(0))
     .getOrCreate()
 
