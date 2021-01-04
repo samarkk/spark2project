@@ -1,1 +1,34 @@
+# set a jar location to save typing, navigating to the directory
+export APPJAR=/mnt/d/ideaprojects/Spark3Examples/target/scala-2.12/spark3examples_2.12-0.1.jar
 
+#########################################################################################
+####            first check with local cluster manager                                ###
+#########################################################################################
+spark-submit \
+--class com.skk.training.sparkcore.SparkLogProcessorWithLogging \
+--driver-java-options "-Dlog4j.configuration=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources/sparklogprocessor.log4j.properties -Dspark.yarn.app.container.log.dir=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources" \
+--conf spark.executor.extraJavaOptions=-Dlog4j.configuration=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources/sparklogprocessor.log4j.properties \
+--master local \
+$APPJAR apachelogs badrecs
+
+spark-submit \
+--class  com.skk.training.sparkcore.SparkLogProcessorWithLogging \
+--driver-java-options "-Dlog4j.configuration=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources/sparklogprocessor.log4j.properties -Dspark.yarn.app.container.log.dir=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources" \
+--conf spark.executor.extraJavaOptions=-Dlog4j.configuration=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources/sparklogprocessor.log4j.properties \
+--master yarn \
+$APPJAR apachelogs badrecs
+
+# see the applications completed
+yarn application -list -appStates ALL
+
+# take a look at the logs for the application that finished
+yarn logs -applicationId \
+application_1601361533342_0003 \
+-show_container_log_info
+
+# we can get to the log file for the executor specifically
+yarn logs -applicationId \
+application_1601361533342_0003 \
+-containerId \
+container_1601361533342_0003_01_000002 \
+-log_files sparklogprocessor.log
