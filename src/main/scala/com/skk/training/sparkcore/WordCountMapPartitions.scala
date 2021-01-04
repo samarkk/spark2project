@@ -1,4 +1,4 @@
-package sparkcore
+package com.skk.training.sparkcore
 
 import org.apache.spark.sql.SparkSession
 
