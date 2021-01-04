@@ -11,6 +11,20 @@ spark-submit \
 --master local \
 $APPJAR apachelogs badrecs
 
+##############################################################################################
+############             check on spark standalone                                 ###########
+##############################################################################################
+
+spark-submit \
+--class sparkcore.SparkLogProcessorWithLogging \
+--driver-java-options "-Dlog4j.configuration=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources/sparklogprocessor.log4j.properties" \
+--conf spark.executor.extraJavaOptions=-Dlog4j.configuration=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources/sparklogprocessor.log4j.properties \
+--master spark://asuspc:7077 \
+$APPJAR apachelogs badrecs
+
+##############################################################################################
+############             check on yarn                                             ###########
+###############################################################################################
 spark-submit \
 --class  com.skk.training.sparkcore.SparkLogProcessorWithLogging \
 --driver-java-options "-Dlog4j.configuration=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources/sparklogprocessor.log4j.properties -Dspark.yarn.app.container.log.dir=file:///mnt/d/ideaprojects/Spark3Examples/src/main/resources" \
