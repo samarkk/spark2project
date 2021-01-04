@@ -9,6 +9,9 @@ case class LogRecord(ipAddress: String, clientIdentity: String, userId: String,
                      protocol: String, responseCode: String, contentSize: Long)
 
 object SparkLogProcessor {
+  def main(args: Array[String]): Unit = {
+    processApacheLogs(args(0), args(1))
+  }
 
   def parseApacheLogLine(logLine: String): LogRecord = {
     val AALP = """^(\S+) (\S+) (\S+) \[([\w:/]+\s[+\-]\d{4})\] "(\S+) (\S+)\s*(\S*)\s*" (\d{3}) (\S+)""".r
@@ -22,8 +25,8 @@ object SparkLogProcessor {
       case ex: Exception => null
     }
   }
-  def main(args: Array[String]) {
 
+  def processApacheLogs(fileLoc: String, badRecsSaveLoc: String) {
     val spark = SparkSession
       .builder()
       .appName("SparkLogProcessor")
@@ -33,11 +36,9 @@ object SparkLogProcessor {
     sc.setLogLevel("ERROR")
     //  val AALP = """^(\S+) (\S+) (\S+) \[([\w:/]+\s[+\-]\d{4})\] "(\S+) (\S+)\s*(\S*)\s*" (\d{3}) (\S+)""".r
     //    val fileLoc = "D:/ufdata/apachelogs"
-    val fileLoc = args(0)
     val logFileRDD = sc.textFile(fileLoc)
     //    println("No of logs " + logFileRDD.count)
     //    logFileRDD take 2 foreach println
-
 
 
     val accessLogs = logFileRDD.map(parseApacheLogLine).filter(_ != null)
@@ -133,7 +134,7 @@ object SparkLogProcessor {
     val badRecords = accessLogs.filter(_.responseCode == "404").cache
     println(badRecords.count)
     assert(badRecords.count == 6185)
-    badRecords.saveAsTextFile(args(1))
+    badRecords.saveAsTextFile(badRecsSaveLoc)
     /* ... new cell ... */
 
     // find out the  5 most frequent bad hosts - do a count descending for the ipAddress part of the
