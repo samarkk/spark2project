@@ -1,6 +1,6 @@
-package optimizationsandfindings
+package optimizations
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
@@ -16,7 +16,7 @@ object SparkDFOptimizations extends App {
   import spark.implicits._
 
 
-  val fileLoc = "file:///D:/findataf/cm/cmcsv"
+  val fileLoc = "file:///mnt/d/findataf/cm/cmcsv"
   val prvolSchema = StructType(
     Array(
       StructField("rectype", StringType),
@@ -48,6 +48,7 @@ object SparkDFOptimizations extends App {
   // if we do not repartition we will have 94 partitions
   val prvolDFSaveLocation = "file:///mnt/d/tmp/prvoldf"
   prvolDF.
+    filter("Series = 'EQ'").
     repartition(1).
     write.
     mode("overwrite").
@@ -59,7 +60,6 @@ object SparkDFOptimizations extends App {
   val prvolDFFmDisk = spark.read.parquet(prvolDFLocation)
 
   def createRandomUpperLower(symbol: String) = {
-    import scala.util.Random
     val random = new scala.util.Random()
     val symbolLength = symbol.length
     val randomNumber = random.nextInt(3)
@@ -104,9 +104,12 @@ object SparkDFOptimizations extends App {
     val calendar = Map[String, String]("JAN" -> "01", "FEB" -> "02", "MAR" -> "03", "APR" -> "04",
       "MAY" -> "05", "JUN" -> "06", "JUL" -> "07", "AUG" -> "08", "SEP" -> "09", "OCT" -> "10",
       "NOV" -> "11", "DEC" -> "12")
+    // if it is in a proper date format anyway such as 2007-04-30 then the substring will be
+    // 7-04 which will not be in the calendar
+    // and we will take it as is using the None pattern match
     calendar.get(mname) match {
       case None => dt
-      case Some((mn)) => dt.substring(dt.length - 4, dt.length) + "-" + mn + "-" + dt.substring(0, 2)
+      case Some(mn) => dt.substring(dt.length - 4, dt.length) + "-" + mn + "-" + dt.substring(0, 2)
     }
   }
 
@@ -124,6 +127,7 @@ object SparkDFOptimizations extends App {
   // also while saving it reduce the number of partitions
 
   cmdf.
+    filter("SERIES = 'EQ'").
     withColumn("symulr", udfRandomUL($"symbol")).
     withColumn("yr", year(
       to_timestamp(udf_mname_to_no($"TIMESTAMP"))
@@ -134,16 +138,18 @@ object SparkDFOptimizations extends App {
     selectExpr(
       "symbol",
       "symulr",
+      "series",
       "tottrdqty as qty",
       "tottrdval as vlu",
       "to_timestamp(umnametono(timestamp)) as tsp",
       "yr",
       "mnth",
-      "totaltrades as trades"
+      "TOTALTRADES as trades"
     ).
     show
 
   val cmdf4j = cmdf.
+    filter("SERIES = 'EQ'").
     withColumn("symulr", udfRandomUL($"symbol")).
     withColumn("yr", year(
       to_timestamp(udf_mname_to_no($"TIMESTAMP"))
@@ -154,20 +160,45 @@ object SparkDFOptimizations extends App {
     selectExpr(
       "symbol",
       "symulr",
+      "series",
       "tottrdqty as qty",
       "tottrdval as vlu",
       "to_timestamp(umnametono(timestamp)) as tsp",
       "yr",
       "mnth",
-      "totaltrades as trades"
+      "TOTALTRADES as trades"
     )
   // lets  save cmdf4j as a  parquet dataframe with two partitions
+  // while writing the data we can see warnings for data where
+  // we have the totaltrades and isin column missing and values
+  // for these columns will be null
   val savedCMDF4JLocation = "file:///mnt/d/tmp/cmdf_plain_df"
   cmdf4j.
-    repartition(2).
+    repartition(4).
     write.
     mode("overwrite").
     parquet(savedCMDF4JLocation)
+
+  /*
+    cmdf.selectExpr(
+      "SERIES", "OPEN", "HIGH", "CLOSE", "LOW",
+      "LAST", "ISIN", "TOTALTRADES",
+      "TIMESTAMP", "PREVCLOSE", "TOTTRDQTY",
+      "TOTTRDVAL", "SYMBOL").
+      filter("TIMESTAMP = '01-JAN-2020'").
+      repartition(1).
+      write.
+      option("header", value = true).
+      csv("file:///mnt/d/tmp/csvshufflechk")
+
+    val shuffledCSVDF = spark.read.option("inferSchema",true).
+      option("header",true).
+      csv("file:///mnt/d/tmp/csvshufflechk")
+      shuffledCSVDF.printSchema()
+    shuffledCSVDF.filter("TIMESTAMP = '01-JAN-2020'").show
+    shuffledCSVDF.filter("TIMESTAMP = '02-JAN-2020'").show
+    shuffledCSVDF.select("timestamp").distinct.count
+    */
 
   /*
   repartition is for repartitioning in memory
@@ -203,7 +234,7 @@ object SparkDFOptimizations extends App {
   // which will ensure that the filters are pushed down to the base data
 
   // create symbol and linked symbol data frame
-  // we should be able to see tCs3 is TCs,  TCS2 is TCS and so on
+  // we should be able to see tCs3 is TCS,  TCS2 is TCS and so on
 
   val symldf = cmdf4jFmDisk.select("tsp", "symbol", "symulr").distinct.repartition(1)
 
@@ -258,7 +289,7 @@ object SparkDFOptimizations extends App {
   }
 
   for (symbol <- List("ACC", "HDFCBANK", "HDFC", "INFY", "TCS"))
-    getRowsForSymbol(symbol, symdf, prvolDFFmDisk).show
+    getRowsForSymbol(symbol, symdf, prvolDFFmDisk).show(1000, truncate = false)
 
   // with a table within the auto broadcaast join threshold broadcast will be piced up automatically
   val symdf1720 = symdf.filter("year(tsp) between 2017 and 2020")
@@ -281,6 +312,50 @@ object SparkDFOptimizations extends App {
       cmdf4jFmDisk.col("tsp") === symdflim.col("tsp") &&
         cmdf4jFmDisk("symbol") === symdflim.col("symbol"))
 
+  //####################################################################
+  //###        Replace Join by Window ?                            #####
+  //####################################################################
+  val cmdfPrUnion = cmdf4jFmDisk.selectExpr("symbol", "series", "tsp", "qty", "vlu",
+    "trades", "yr", "mnth", "null as delper").
+    union(prvolDFFmDisk.selectExpr("symbol", "series", "trdate as tsp",
+      "null as qty", "null as vlu", "null as trades", "null as yr", "null as mnth", "delper"))
+
+  cmdfPrUnion.createOrReplaceTempView("jtbl")
+
+  spark.sql(
+    """
+    select f.* from
+    (
+        select symbol, series, tsp, qty, vlu, trades,
+        yr, mnth, delper,
+        lag(delper, 1) over (partition by symbol, tsp order by tsp) as delperf
+        from jtbl
+    ) f
+    where f.delperf is not null
+    """
+  ).show
+
+  def addCols[T](ds: Dataset[T], n: Int) = {
+    val cols = (1 to n).map(x => s"id * $x as col$x")
+    ds.selectExpr(("id" +: cols): _*)
+  }
+
+  val ds1 = spark.range(10)
+  val df1 = ds1.selectExpr("id", "col1")
+  val df2 = ds1.selectExpr("id", "col3")
+  val dfUnioned = df1.selectExpr("id", "col1", "null as col3").
+    union(df2.selectExpr("id", "null as col1", "col3"))
+  dfUnioned.createOrReplaceTempView("wjchk")
+  spark.sql(
+    """
+    select f.* from
+   (
+      select id, col1, col3,
+      max(col1) over (partition by id order by id) as mc1,
+      lag(col1,1) over (partition by id order by id) as lagc from wjchk
+   )f
+   where lagc is not null
+  """).show
 
   //////////////////////////////////////////////////////////////////////
   ////         DPP Dynamic Partition Pruning                    ///////
@@ -326,7 +401,7 @@ object SparkDFOptimizations extends App {
   cmdf4jFmDisk.write.mode("overwrite").bucketBy(32, "tsp", "symbol").saveAsTable(cmdfBucketTableName)
   val cmdfBucketed = spark.read.table(cmdfBucketTableName)
   cmdfBucketed.filter("tsp = '2019-04-23' and symbol = 'TCS'").explain
-  // the exchange will disappear fromt he bucketed table
+  // the exchange will disappear from the bucketed table
   cmdfBucketed.groupBy("tsp", "symbol").agg(sum("vlu") as "totvlu").explain
   cmdf4jFmDisk.groupBy("tsp", "symbol").agg(sum("vlu") as "totvlu").explain
 
@@ -357,8 +432,9 @@ object SparkDFOptimizations extends App {
   // save the two skewed tables so that they can be loaded directly
   // for experimentation
   val prvSkewSaveLocation = "file:///mnt/d/tmp/prvskew"
-  prvolDFSkewed.write.parquet(prvSkewSaveLocation)
   val cmSkewSaveLocation = "file:///mnt/d/tmp/cmskew"
+
+  prvolDFSkewed.write.parquet(prvSkewSaveLocation)
   cmdf4jSkewed.write.parquet(cmSkewSaveLocation)
   // val prvolDFSkewed = spark.read.parquet(prvSkewSaveLocation)
   // val cmdf4jSkewed = spark.read.parqueyt(cmSkewSaveLocation)
@@ -382,8 +458,8 @@ object SparkDFOptimizations extends App {
   val cmdfSkewedSaveLocation = "file:///mnt/d/tmp/cmdfskew"
   val prvdfSkewedSaveLocation = "file:///mnt/d/tmp/prvskewu"
 
-  cmdfSkewedBySymbol.write.save(cmdfSkewedSaveLocation)
-  prvoldfDelPerForSymbolSkew.write.save(prvdfSkewedSaveLocation)
+  cmdfSkewedBySymbol.write.mode("overwrite").save(cmdfSkewedSaveLocation)
+  prvoldfDelPerForSymbolSkew.write.mode("overwrite").save(prvdfSkewedSaveLocation)
 
   // load the skewed data
   val cmdfSkewed = spark.read.parquet(cmdfSkewedSaveLocation)
@@ -438,4 +514,74 @@ object SparkDFOptimizations extends App {
         "11,12,13,14,15,16,17,18,19)) as rno"),
     Array("sksym", "rno")
   ).write.mode("overwrite").parquet(cmdfLargeJoinSaveLocation)
+
+  // #####################################################################
+  // ##########    Salted Window Function - RDD zipWithIndex Solution ####
+  // #####################################################################
+
+  // take a look at the data
+  // due to some reason
+  cmdfSkewed.selectExpr("*", "cast(qty as float) as qtyfl").orderBy(desc("qtyfl")).show
+  val cmdfSkewedCount = cmdfSkewed.count - 1.0
+
+  // we need to find out the percentile / percent rank
+  /*
+   need total sort across whatever measure we want to build the percentiles on
+   we can try with monotonically increasing id - but they are not consecutive
+   we have percent rank formula as rank for the row based on the measure / total number of ranks - 1
+   the monotonically increasing ids are not sequential
+   */
+
+  cmdfSkewed.selectExpr("*", "cast(qty as float) as qtyfl").orderBy("qtyfl").selectExpr("*", "monotonically_increasing_id() as id").orderBy(desc("id")).show()
+
+  /*
+   we can sort the dataframe
+   and convert to rdd and add on the required functionality as a calculation
+   */
+  cmdfSkewed.selectExpr("*", "cast(qty as float) as qtyfl").orderBy("qtyfl").rdd.zipWithIndex.map {
+    case (row, idx) => (row.getAs[String]("symbol"), row.getAs[String]("tsp"), row.getAs[String]("qty"), row.getAs[String]("vlu"), row.getAs[Float]("qtyfl"), idx, idx / cmdfSkewedCount)
+  }.sortBy {
+    // symbol, timestamp, quantity, value, quantityFloat, index, percent rank
+    case (symbol, tsp, qty, vlu, qtyfl, idx, p_rank) => -p_rank
+  }.take(10).foreach(println)
+
+  /*
+  supposing we were asked to find out the max percentile hit for quantity by any symbol
+  we can do a reduce by key
+   */
+  cmdfSkewed.selectExpr("*", "cast(qty as float) as qtyfl").orderBy("qtyfl").rdd.zipWithIndex.map {
+    case (row, idx) => (row.getAs[String]("symbol"), (idx, idx / cmdfSkewedCount))
+  }.reduceByKey((x, y) => if (x._2 < y._2) y else x).take(10).foreach(println)
+
+  /*
+   find the top 100 percentile ranks
+   in this case, we can optimize and find them in the mapPartitions
+   and restrict ourselves to 100 per partition
+   and then do a repartition into 1 and
+   apply the function again
+   */
+  // IteratorToIteratorTransformations
+  def useI2ITransforms(cmdfSkewedCount: Double): Unit = {
+    val TOP_PRs = 100
+    val findMaxRankByPartition = (records: Iterator[(String, Double)]) => {
+      implicit val ordering: Ordering[(String, Double)] = Ordering.by[(String, Double), Double](x => -x._2)
+      // percentRankTreeSet
+      val prTreeSet = new scala.collection.mutable.TreeSet[(String, Double)]()
+      records.foreach {
+        record =>
+          prTreeSet.add(record)
+          if (prTreeSet.size > TOP_PRs)
+            prTreeSet.remove(prTreeSet.last)
+      }
+      prTreeSet.toIterator
+    }
+    cmdfSkewed.selectExpr("*", "cast(qty as float) as qtyfl").orderBy("qtyfl").rdd.zipWithIndex.
+      map {
+        case (row, idx) => (row.getAs[String]("symbol"), idx / cmdfSkewedCount)
+      }.
+      mapPartitions(findMaxRankByPartition).
+      repartition(1).
+      mapPartitions(findMaxRankByPartition).
+      collect().foreach(println)
+  }
 }
