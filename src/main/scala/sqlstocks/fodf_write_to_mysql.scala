@@ -1,7 +1,10 @@
+package sqlstocks
+
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
+// in focm_analysis - save the csv files as a the fotbl - default format parquet used will reduce the size significantly
 val fodf = spark.read.table("fotbl")
 // create a function literal to replace monthnames with numbers
   // we want to transform 31-OCT-2019 to 31-10-2019
