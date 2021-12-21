@@ -75,7 +75,8 @@ order by symbol, whowon
 val prvolDFLocation = "file:///mnt/d/tmp/prvoldf"
 val prvolDFFmDisk = spark.read.parquet(prvolDFLocation)
   
-prvolDFFmDisk.filter("year(trdate) between 2018 and 2019").groupBy("symbol").agg(avg("delper") as "delper").show
+val prvoldf = prvolDFFmDisk.filter("year(trdate) between 2018 and 2019").groupBy("symbol").agg(avg("delper") as "delper")
+prvoldf.show
 
 prvoldf.write.saveAsTable("prvol1819tbl")
 prvoldf.write.jdbc("jdbc:mysql://localhost:3306/testdb", "prvoltbl", props);
