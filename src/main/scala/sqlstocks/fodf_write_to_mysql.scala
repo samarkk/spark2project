@@ -4,6 +4,9 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
+object FODFWriteToMySQL extends App{
+ val spark = SparkSession.builder().appName("FODFWMySQL").getOrCrete()
+  
 // in focm_analysis - save the csv files as a the fotbl - default format parquet used will reduce the size significantly
 val fodf = spark.read.table("fotbl")
 // create a function literal to replace monthnames with numbers
@@ -81,3 +84,4 @@ prvoldf.write.jdbc("jdbc:mysql://localhost:3306/testdb", "prvoltbl", props);
 sql join query
 select f.*, p.delper from futpltbl f inner join prvoltbl p on f.symbol = p.symbol;
 */
+}
