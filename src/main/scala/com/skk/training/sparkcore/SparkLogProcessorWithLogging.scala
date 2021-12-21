@@ -3,7 +3,7 @@ package com.skk.training.sparkcore
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage._
 import org.apache.log4j.Logger
-import sparkcore.SparkLogProcessorWithLogging.getClass
+
 
 object Holder extends Serializable {
   @transient lazy val log: Logger = Logger.getLogger(getClass.getName)
