@@ -1,4 +1,4 @@
-pakcage optimizationsandfindings
+package optimizationsandfindings
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, SparkSession}
