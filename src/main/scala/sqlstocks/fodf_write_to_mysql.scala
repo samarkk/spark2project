@@ -5,7 +5,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 
 object FODFWriteToMySQL extends App{
- val spark = SparkSession.builder().appName("FODFWMySQL").getOrCrete()
+ val spark = SparkSession.builder().appName("FODFWMySQL").getOrCreate()
   
 // in focm_analysis - save the csv files as a the fotbl - default format parquet used will reduce the size significantly
 val fodf = spark.read.table("fotbl")
