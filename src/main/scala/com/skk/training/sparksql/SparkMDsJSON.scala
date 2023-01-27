@@ -37,7 +37,7 @@ object SparkMDsJSON {
     StructField("genres", ArrayType(StringType, true), true), 
     StructField("ratings", MapType(StringType, DoubleType))
     )
-)
+   )
     val movieJSONWithSchemaDF = spark.read.schema(cmplxSchema).json(mrdd)
     movieJSONWithSchemaDF.show(false)
     movieJSONWithSchemaDF.printSchema
