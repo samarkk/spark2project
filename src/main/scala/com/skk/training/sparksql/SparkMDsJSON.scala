@@ -21,8 +21,23 @@ object SparkMDsJSON {
     val movieJSONDF = spark.read.json(mrdd)
     movieJSONDF.show(false)
 
-    val cmplxSchema = StructType(Array(StructField("title", StringType, true), StructField("country", StringType, true), StructField("year", IntegerType, true), StructField("cast", StructType(Array(StructField("Director", StringType, true), StructField("LeadActor", StringType, true), StructField("BoxOfficeUSDMn", DoubleType, true))), true), StructField("genres", ArrayType(StringType, true), true), StructField("ratings", MapType(StringType, DoubleType))))
-
+    //val cmplxSchema = StructType(Array(StructField("title", StringType, true), StructField("country", StringType, true), StructField("year", IntegerType, true), StructField("cast", StructType(Array(StructField("Director", StringType, true), StructField("LeadActor", StringType, true), StructField("BoxOfficeUSDMn", DoubleType, true))), true), StructField("genres", ArrayType(StringType, true), true), StructField("ratings", MapType(StringType, DoubleType))))
+    // schema formatted with indentation to discern the embedded strucures more easily
+    val cmplxSchema = StructType(
+    Array(
+    StructField("title", StringType, true), 
+    StructField("country", StringType, true), 
+    StructField("year", IntegerType, true), 
+    StructField("cast", StructType(
+        Array(
+        StructField("Director", StringType, true), 
+        StructField("LeadActor", StringType, true), 
+        StructField("BoxOfficeUSDMn", DoubleType, true)
+    )), true), 
+    StructField("genres", ArrayType(StringType, true), true), 
+    StructField("ratings", MapType(StringType, DoubleType))
+    )
+)
     val movieJSONWithSchemaDF = spark.read.schema(cmplxSchema).json(mrdd)
     movieJSONWithSchemaDF.show(false)
     movieJSONWithSchemaDF.printSchema
