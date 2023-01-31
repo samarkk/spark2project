@@ -17,7 +17,7 @@ libraryDependencies += "org.apache.hbase" % "hbase-server" % "1.2.0" // needed f
 libraryDependencies += "com.101tec" % "zkclient" % "0.10"
 libraryDependencies += "mysql" % "mysql-connector-java" % "5.1.46"
 libraryDependencies += "io.delta" %"delta-core_2.12" % "0.7.0"
-
+libraryDependencies += "org.jfree" % "jfreechart" % "1.5.0"
 
 
 resolvers ++= Seq(
